@@ -1,0 +1,17 @@
+---
+- name: Remove red/green/blue backends
+  gather_facts: no
+  hosts: traefik_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+    - name: Remove backend containers (red/green/blue) from Remote Docker host
+      docker_container:
+        docker_host: "{{ docker_api_url }}"
+        name: "{{ container_name_prefix }}{{ item.name }}"
+        state: absent
+      loop: "{{ traefik_backend_list }}"
+...

@@ -1,0 +1,55 @@
+---
+  traefik_version: "v2.2.11"
+  traefik_arch: "amd64"
+  traefik_archive_name: "traefik_{{ traefik_version }}_linux_{{ traefik_arch }}.tar.gz"
+
+  traefik_download_url: "https://github.com/traefik/traefik/releases/download/{{ traefik_version}}/{{ traefik_archive_name }}"
+
+  traefik_binary_dir: '/opt/traefik'
+  traefik_config_dir: '/etc/traefik'
+
+  docker_api_url: "tcp://192.168.56.101:2375"
+
+  alpine_add_python: sh -c "apk add --no-cache python2 &&
+                               exec httpd-foreground"
+
+  container_name_prefix: "traefik_backend_"
+
+  traefik_backend_list:
+    - name: 'red'
+      host: '192.168.56.101'
+      port: 8088
+    - name: 'green'
+      host: '192.168.56.101'
+      port: 8089
+    - name: 'blue'
+      host: '192.168.56.101'
+      port: 8090
+
+  # "backend-container.label.name" : "traefik-container-{{ item.name }}" ,
+  # see: https://doc.traefik.io/traefik/providers/docker/#usebindportip
+  traefik_container_labels: >
+    {
+      "traefik.enable" : "true" ,
+
+      "traefik.http.routers.container-{{ item.name }}.priority" : "99" ,
+      "traefik.http.routers.container-{{ item.name }}.entrypoints" : "web" ,
+      "traefik.http.routers.container-{{ item.name }}.rule" : "PathPrefix(`/{{ item.name }}`)" ,
+      "traefik.http.routers.container-{{ item.name }}.middlewares" : "cont-{{ item.name }}-stripprefix" ,
+      "traefik.http.middlewares.cont-{{ item.name }}-stripprefix.stripprefix.prefixes" : "/{{ item.name }}" ,
+      "traefik.http.routers.container-{{ item.name }}.service" : "service-{{ item.name }}" ,
+      "traefik.http.services.service-{{ item.name }}.loadbalancer.server.port" : "80" ,
+
+      "traefik.http.routers.balance-router.entrypoints" : "web" ,
+      "traefik.http.routers.balance-router.rule" : "Host(`traefik.example.com`)" ,
+      "traefik.http.routers.balance-router.service" : "balance-service" ,
+      "traefik.http.services.balance-service.loadbalancer.server.port" : "80"
+    }
+
+  python_dependencies:
+    - 'python-pip'
+    - 'python-setuptools'
+    - 'virtualenv'
+    # backports needs to python2 installation
+    - 'python-backports.ssl-match-hostname'
+...

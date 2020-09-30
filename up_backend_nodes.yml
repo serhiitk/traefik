@@ -1,0 +1,41 @@
+---
+  - name: Install pip module dependencies
+    apt:
+      name: "{{ python_dependencies }}"
+      state: latest
+
+  - name: Install Docker SDK for Python
+    pip:
+      name: 'docker'
+      state: latest
+
+  - name: Up backend Webservers (red/green/blue) in containers (Remote Docker host)
+    docker_container:
+      docker_host: "{{ docker_api_url }}"
+      name: "{{ container_name_prefix }}{{ item.name }}"
+      image: "httpd:alpine"
+      command: "{{ alpine_add_python }}"
+      ports: "{{ item.host }}:{{ item.port }}:80"
+      state: started
+      restart_policy: always
+      # uncomment below to recreate an existing containers
+      # recreate: yes      
+      labels: "{{ traefik_container_labels }}"
+    loop: "{{ traefik_backend_list }}"
+
+  - name: Add backend Webservers (red/green/blue) to dynamic inventory
+    add_host:
+      name: "{{ container_name_prefix }}{{ item.name }}"
+      ansible_connection: docker
+      ansible_docker_extra_args: "-H={{ docker_api_url }}"
+    loop: "{{ traefik_backend_list }}"
+    changed_when: false
+
+  - name: Copy files to container
+    become_method: su
+    delegate_to: "{{ container_name_prefix }}{{ item.name }}"
+    copy:
+      src: "{{ item.name }}_index.html"
+      dest: /usr/local/apache2/htdocs/index.html
+    loop: "{{ traefik_backend_list }}"
+...

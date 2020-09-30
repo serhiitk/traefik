@@ -1,0 +1,8 @@
+###############################################################################
+[traefik_server]
+192.168.56.221
+
+[traefik_server:vars]
+ansible_user=vagrant
+ansible_private_key_file=./hosts/Traefik-server/.vagrant/machines/default/virtualbox/private_key
+ansible_python_interpreter=/usr/bin/python

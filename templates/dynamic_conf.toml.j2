@@ -1,0 +1,18 @@
+[http]
+  # Add the router
+  [http.routers]
+    # Access the dashboard in Secure Mode
+    [http.routers.secure-api]
+      entryPoints = ["traefik"]
+      middlewares = ["dashboard-auth"]
+      service = "api@internal"
+      # The dashboard can be accessed on http://traefik.example.com/dashboard/
+      rule = "Host(`traefik.example.com`)"
+
+  # Add the middleware
+  [http.middlewares]
+    # The dashboard basicAuth authentication middleware 
+    [http.middlewares.dashboard-auth.basicAuth]
+      users = [
+        "user1:$apr1$54eGL2dN$UZmbgWUXKVt9.dvYSbWOg0",
+      ]

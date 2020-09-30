@@ -1,0 +1,79 @@
+---
+- name: Install and configure Traefik
+  gather_facts: no
+  hosts: traefik_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+    - import_tasks: up_backend_nodes.yml
+
+    - name: Ensure "traefik" group exists
+      group:
+        name: traefik
+        state: present
+
+    - name: Ensure "traefik" user exists
+      user:
+        name: traefik
+        group: traefik
+        system: true
+        shell: /sbin/nologin
+        create_home: false
+        state: present
+
+    - name: Create Traefik binary and configuration directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: traefik
+        group: traefik
+        mode: 0755
+      loop:
+        - "{{ traefik_binary_dir }}"
+        - "{{ traefik_config_dir }}"
+
+    - name: Download and unarchive Traefik (Skip when already exists!)
+      unarchive:
+        src: "{{ traefik_download_url }}"
+        dest: "{{ traefik_binary_dir }}"
+        owner: traefik
+        group: traefik
+        mode: 0755
+        remote_src: yes
+        creates: "{{ traefik_binary_dir }}/traefik"
+
+    - name: Configuring Traefik as systemd service
+      template:
+        src: traefik.service.j2
+        dest: /etc/systemd/system/traefik.service
+      notify: activate Traefik service
+
+    - name: Copy Traefik configuration
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ traefik_config_dir }}/{{ item.dest }}"
+        owner: traefik
+        group: traefik
+        mode: 0755
+      loop:
+        - { src: 'traefik.toml.j2', dest: 'traefik.toml' }
+        - { src: 'dynamic_conf.toml.j2', dest: 'dynamic_conf.toml' }
+      notify: restart Traefik
+
+  handlers:
+
+    - name: activate Traefik service
+      systemd:
+        daemon_reload: yes
+        name: 'traefik.service'
+        enabled: yes
+        state: restarted
+
+    - name: restart Traefik
+      service:
+        name: traefik
+        state: restarted
+...
